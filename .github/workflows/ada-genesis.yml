@@ -24,7 +24,7 @@ jobs:
           pip install -r requirements.txt
       - name: Run Pytest
         working-directory: ./backend
-        run: pytest -v
+        run: python -m pytest -v
 
   frontend-test:
     name: Frontend Vitest
@@ -39,7 +39,7 @@ jobs:
           cache-dependency-path: ./frontend/package.json
       - name: Install dependencies
         working-directory: ./frontend
-        run: npm install
+        run: npm ci # Use npm ci for clean install in CI environments
       - name: Run Vitest
         working-directory: ./frontend
         run: npm run test
@@ -57,7 +57,7 @@ jobs:
       - name: Install and Build Frontend
         working-directory: ./frontend
         run: |
-          npm install
+          npm ci # Use npm ci for clean install in CI environments
           npm run build
       - name: Upload Frontend Build Artifact
         uses: actions/upload-artifact@v4
