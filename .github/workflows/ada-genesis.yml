@@ -25,6 +25,8 @@ jobs:
           pip install "qdrant-client[fastembed]"
       - name: Run Pytest
         working-directory: ./backend
+        env:
+          TESTING: "true"
         run: python -m pytest -v
 
   frontend-test:
