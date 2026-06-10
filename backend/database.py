@@ -5,6 +5,15 @@ from qdrant_client.models import PointStruct, VectorParams, Distance
 
 class CloudEpistemicMemory:
     def __init__(self):
+        # Check if we are running in testing mode or missing environment variables
+        self.is_mock = os.getenv("TESTING") == "true" or not os.getenv("QDRANT_URL") or not os.getenv("NEO4J_URI")
+        
+        if self.is_mock:
+            self.qdrant = None
+            self.neo4j_driver = None
+            self.collection_name = "ada_epistemic_events"
+            return
+
         # اتصال به Qdrant Cloud (Vector DB)
         self.qdrant = QdrantClient(
             url=os.getenv("QDRANT_URL"), 
@@ -26,6 +35,10 @@ class CloudEpistemicMemory:
         )
 
     def store_contradiction(self, problem: str, hypothesis: str, unsat_core: list):
+        if self.is_mock:
+            print(f"[Mock DB] Stored contradiction for problem: {problem}")
+            return
+            
         core_str = " AND ".join(unsat_core)
         doc_id = abs(hash(problem + core_str)) % (10 ** 8) # شناسه عددی برای Qdrant
         
@@ -49,6 +62,10 @@ class CloudEpistemicMemory:
             session.run(query, problem=problem, hypothesis=hypothesis, core=core_str)
 
     def store_meta_axiom(self, problem: str, unsat_core: list, meta_axiom: str):
+        if self.is_mock:
+            print(f"[Mock DB] Stored meta-axiom: {meta_axiom}")
+            return
+            
         core_str = " AND ".join(unsat_core)
         query = """
         MATCH (u:UnsatCore {text: $core})

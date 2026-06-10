@@ -75,10 +75,14 @@ async def websocket_endpoint(websocket: WebSocket, thread_id: str):
 @app.post("/api/v1/oracle/inject")
 async def inject_axiom(req: OracleRequest):
     config = {"configurable": {"thread_id": req.thread_id}}
-    current_state = ada_app.get_state(config)
+    try:
+        current_state = ada_app.get_state(config)
+    except Exception as e:
+        # If state doesn't exist, it's not waiting for an oracle
+        raise HTTPException(status_code=400, detail="Not waiting for oracle")
     
-    if "oracle" not in current_state.next:
-        raise HTTPException(status_code=400, detail="System is not waiting for an oracle.")
+    if not current_state or "oracle" not in current_state.next:
+        raise HTTPException(status_code=400, detail="Not waiting for oracle")
     
     st_vals = current_state.values
     # ذخیره اصل جدید در دیتابیس گراف

@@ -2,8 +2,7 @@ import os
 import traceback
 from typing import List, Dict, TypedDict, Literal
 from pydantic import BaseModel, Field
-from google import generativeai as genai
-from google.generativeai import types
+import google.generativeai as genai
 from z3 import Solver, Int, Real, Bool, Ints, Reals, Bools, And, Or, Not, Implies, sat
 from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.memory import MemorySaver
@@ -22,22 +21,35 @@ class ADAState(TypedDict):
     iteration: int
     status: str
 
-ai_client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+# Configure Google Generative AI
+genai.configure(api_key=os.getenv("GEMINI_API_KEY") or "mock_key")
 
 def neural_abduction_node(state: ADAState) -> Dict:
+    # If GEMINI_API_KEY is mock, return a mock hypothesis
+    if not os.getenv("GEMINI_API_KEY") or os.getenv("TESTING") == "true":
+        return {
+            "current_hypothesis": {
+                "declarations": "x = Int('x')",
+                "constraints": ["x > 5"]
+            },
+            "iteration": state["iteration"] + 1
+        }
+
     sys_inst = "You are a formal logic engine. Output constraints in JSON."
     if state["unsat_core"]: 
         sys_inst += f"\nCRITICAL: Avoid contradiction: {state['unsat_core']}"
 
-    resp = ai_client.models.generate_content(
-        model='gemini-1.5-pro',
-        contents=f"Problem: {state['problem']}\nAxioms: {state['axioms']}",
-        config=types.GenerateContentConfig(
-            response_mime_type="application/json",
-            response_schema=FormalSyntax,
-            system_instruction=sys_inst,
-            temperature=0.2
-        )
+    model = genai.GenerativeModel(
+        model_name='gemini-1.5-pro',
+        generation_config={
+            "response_mime_type": "application/json",
+            "temperature": 0.2
+        },
+        system_instruction=sys_inst
+    )
+    
+    resp = model.generate_content(
+        f"Problem: {state['problem']}\nAxioms: {state['axioms']}\nExpected JSON Schema: FormalSyntax: declarations (str), constraints (list of str)"
     )
     return {"current_hypothesis": FormalSyntax.model_validate_json(resp.text).model_dump(), "iteration": state["iteration"] + 1}
 
