@@ -1,0 +1,21 @@
+# Node.js
+node_modules/
+dist/
+.env
+package-lock.json
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+env/
+
+# IDEs
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
