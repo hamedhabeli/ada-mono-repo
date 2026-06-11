@@ -1,6 +1,7 @@
 # Node.js
 node_modules/
 dist/
+.vite/
 .env
 .env*
 backend/.env

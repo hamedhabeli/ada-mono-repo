@@ -75,4 +75,46 @@ class CloudEpistemicMemory:
         with self.neo4j_driver.session() as session:
             session.run(query, core=core_str, axiom=meta_axiom)
 
+    def search_contradictions(self, problem: str, limit: int = 2) -> list[dict]:
+        if self.is_mock:
+            return [
+                {
+                    "payload": {
+                        "text": f"Problem: {problem} | Failed: x < 5 and x > 10 | Core: C_0",
+                        "type": "contradiction"
+                    },
+                    "score": 0.95
+                }
+            ]
+            
+        try:
+            embeddings = list(self.qdrant.embed.embed(problem))
+            embedding = embeddings[0] if embeddings else [0.0]*768
+            results = self.qdrant.search(
+                collection_name=self.collection_name,
+                query_vector=embedding,
+                limit=limit
+            )
+            return [{"payload": r.payload, "score": r.score} for r in results]
+        except Exception as e:
+            print(f"Error searching contradictions: {e}")
+            return []
+
+    def search_resolved_axioms(self, unsat_core: str) -> list[str]:
+        if self.is_mock:
+            return ["x is a positive integer", "x is a real number"]
+            
+        query = """
+        MATCH (u:UnsatCore)-[:RESOLVED_BY]->(m:MetaAxiom)
+        WHERE u.text = $core OR u.text CONTAINS $core OR $core CONTAINS u.text
+        RETURN m.text AS axiom
+        """
+        try:
+            with self.neo4j_driver.session() as session:
+                result = session.run(query, core=unsat_core)
+                return [record["axiom"] for record in result]
+        except Exception as e:
+            print(f"Error searching resolved axioms: {e}")
+            return []
+
 memory_db = CloudEpistemicMemory()
