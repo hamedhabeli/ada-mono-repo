@@ -40,10 +40,11 @@ def neural_abduction_node(state: ADAState) -> Dict:
         sys_inst += f"\nCRITICAL: Avoid contradiction: {state['unsat_core']}"
 
     model = genai.GenerativeModel(
-        model_name='gemini-1.5-pro',
+        model_name='gemini-3.5-flash',
         generation_config={
             "response_mime_type": "application/json",
-            "temperature": 0.2
+            "temperature": 0.0,
+            "top_p": 1.0
         },
         system_instruction=sys_inst
     )

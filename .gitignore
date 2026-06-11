@@ -2,6 +2,9 @@
 node_modules/
 dist/
 .env
+.env*
+backend/.env
+frontend/.env
 package-lock.json
 
 # Python
