@@ -7,6 +7,44 @@ from pydantic import BaseModel
 from ada_engine import ada_app
 from database import memory_db
 
+# Compatibility helpers for different LangGraph versions (e.g., 0.0.26 vs 0.1.x+)
+def compat_get_state(config):
+    if hasattr(ada_app, "get_state"):
+        return ada_app.get_state(config)
+    # langgraph==0.0.26 fallback
+    checkpoint = ada_app.checkpointer.get(config)
+    if checkpoint:
+        class MockStateObject:
+            def __init__(self, values, next_nodes):
+                self.values = values
+                self.next = next_nodes
+        
+        values = checkpoint.get("channel_values", {})
+        # Find next nodes to execute
+        next_nodes = []
+        status = values.get("status")
+        iteration = values.get("iteration", 0)
+        error_count = values.get("error_count", 0)
+        
+        # If we are in SYNTAX_DEADLOCK with error_count >= 3 or iteration >= 5, the next node is oracle
+        if (status == "SYNTAX_DEADLOCK" and error_count >= 3) or iteration >= 5:
+            next_nodes = ["oracle"]
+        else:
+            next_nodes = ["neural"]
+            
+        return MockStateObject(values, next_nodes)
+    return None
+
+def compat_update_state(config, values):
+    if hasattr(ada_app, "update_state"):
+        return ada_app.update_state(config, values)
+    # langgraph==0.0.26 fallback
+    checkpoint = ada_app.checkpointer.get(config)
+    if checkpoint:
+        checkpoint.get("channel_values", {}).update(values)
+        # put back
+        ada_app.checkpointer.put(config, checkpoint)
+
 app = FastAPI(title="ADA Cloud Backend")
 
 # Enable CORS for frontend integration
@@ -75,7 +113,7 @@ async def run_graph_and_stream(thread_id: str, state: Optional[dict]):
         node_data = event[node_name]
         
         # Pull complete current state values from LangGraph checkpointer
-        state_obj = ada_app.get_state(config)
+        state_obj = compat_get_state(config)
         current_values = state_obj.values if state_obj else {}
         
         status = node_data.get("status", "PROCESSING")
@@ -158,7 +196,7 @@ async def get_thread_history(thread_id: str):
     if thread_id not in manager.thread_histories:
         config = {"configurable": {"thread_id": thread_id}}
         try:
-            state_obj = ada_app.get_state(config)
+            state_obj = compat_get_state(config)
             if state_obj and state_obj.values:
                 vals = state_obj.values
                 manager.thread_histories[thread_id] = {
@@ -183,7 +221,7 @@ async def get_thread_history(thread_id: str):
 async def inject_axiom(req: OracleRequest):
     config = {"configurable": {"thread_id": req.thread_id}}
     try:
-        current_state = ada_app.get_state(config)
+        current_state = compat_get_state(config)
     except Exception as e:
         raise HTTPException(status_code=400, detail="Not waiting for oracle")
     
@@ -195,7 +233,7 @@ async def inject_axiom(req: OracleRequest):
     memory_db.store_meta_axiom(st_vals["problem"], st_vals["unsat_core"], req.meta_axiom)
     
     # Reset error_count and clear status to INIT on resume
-    ada_app.update_state(config, {
+    compat_update_state(config, {
         "axioms": st_vals["axioms"] + [req.meta_axiom], 
         "iteration": 0, 
         "unsat_core": [], 

@@ -1,7 +1,8 @@
 import os
 import time
 import traceback
-from typing import List, Dict, TypedDict, Literal
+from typing import List, Dict, Literal
+from typing_extensions import TypedDict
 from pydantic import BaseModel, Field
 import google.generativeai as genai
 from z3 import Solver, Int, Real, Bool, Ints, Reals, Bools, And, Or, Not, Implies, sat
@@ -42,10 +43,48 @@ def neural_abduction_node(state: ADAState) -> Dict:
 
     # If GEMINI_API_KEY is mock, return a mock hypothesis
     if not os.getenv("GEMINI_API_KEY") or os.getenv("TESTING") == "true":
-        current_hypothesis = {
-            "declarations": "x = Int('x')",
-            "constraints": ["x > 5"]
-        }
+        prob = state.get("problem", "").lower()
+        axioms = state.get("axioms", [])
+        
+        if "syntax" in prob:
+            if iteration == 1:
+                # Syntax error: y is not declared
+                current_hypothesis = {
+                    "declarations": "x = Int('x')",
+                    "constraints": ["y > 5"]
+                }
+            else:
+                # Corrected syntax on subsequent iteration
+                current_hypothesis = {
+                    "declarations": "x = Int('x')\ny = Int('y')",
+                    "constraints": ["y > 5"]
+                }
+        elif any(kw in prob for kw in ["security", "sandbox", "violation", "import"]):
+            # Security violation: forbidden keyword
+            current_hypothesis = {
+                "declarations": "import os",
+                "constraints": ["x > 5"]
+            }
+        elif any(kw in prob for kw in ["deadlock", "godel", "contradiction", "logic"]):
+            if not axioms:
+                # Contradiction leading to deadlock
+                current_hypothesis = {
+                    "declarations": "x = Int('x')",
+                    "constraints": ["x > 10", "x < 5"]
+                }
+            else:
+                # Resolved after Oracle intervention
+                current_hypothesis = {
+                    "declarations": "x = Int('x')",
+                    "constraints": ["x > 5"]
+                }
+        else:
+            # Default happy path satisfying constraint
+            current_hypothesis = {
+                "declarations": "x = Int('x')",
+                "constraints": ["x > 5"]
+            }
+
         new_log = {
             "event_type": "neural",
             "status": "GENERATED",
