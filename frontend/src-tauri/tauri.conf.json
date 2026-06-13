@@ -42,7 +42,6 @@
     "shell": {
       "sidecar": {
         "ada-api": {
-          "command": "binaries/ada-api",
           "args": [],
           "options": {}
         }
