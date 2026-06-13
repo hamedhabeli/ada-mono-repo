@@ -17,10 +17,10 @@ fn main() {
                     Ok(sidecar) => {
                         tauri::async_runtime::spawn(async move {
                             match sidecar.spawn() {
-                                Ok((mut rx, mut tx)) => {
+                                Ok((mut rx, _child)) => {
                                     println!("Successfully launched ada-api sidecar.");
                                     // Read stdout/stderr to prevent buffer overflow and keep sidecar logs
-                                    while let Some(event) = rx.recv().clone().await {
+                                    while let Ok(event) = rx.recv().await {
                                         match event {
                                             tauri_plugin_shell::process::CommandEvent::Stdout(line) => {
                                                 let log = String::from_utf8_lossy(&line);
