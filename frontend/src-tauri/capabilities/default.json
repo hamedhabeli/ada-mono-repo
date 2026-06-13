@@ -7,6 +7,31 @@
   ],
   "permissions": [
     "core:default",
-    "shell:allow-ada-api"
+    {
+      "identifier": "shell:allow-execute",
+      "allow": [
+        {
+          "name": "binaries/ada-api",
+          "sidecar": true
+        },
+        {
+          "name": "ada-api",
+          "sidecar": true
+        }
+      ]
+    },
+    {
+      "identifier": "shell:allow-spawn",
+      "allow": [
+        {
+          "name": "binaries/ada-api",
+          "sidecar": true
+        },
+        {
+          "name": "ada-api",
+          "sidecar": true
+        }
+      ]
+    }
   ]
 }

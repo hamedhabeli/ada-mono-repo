@@ -1,23 +1,29 @@
 # Implementation Plan
 
 [Overview]
-Fix the Tauri v2 desktop application GitHub Actions build failures by correcting the Tauri schema configurations and permissions.
+Resolve the Tauri v2 desktop compilation error on GitHub Actions by migrating capability permissions to the standard scoped Tauri v2 structure.
 
-We will resolve the Tauri v2 schema and capability validation errors that caused the GitHub Actions workflows to fail on all three platforms (Windows, macOS, Linux). The issues stem from an invalid `"command"` property in `tauri.conf.json`'s sidecar plugin settings, and an invalid `"shell:allow-sidecar"` permission in `capabilities/default.json`. Correcting these configuration issues will allow Tauri to successfully validate the schema, resolve permissions, and compile flawless desktop installers.
+We discovered the precise compilation error from the GitHub Actions logs. The error occurs because Tauri v2 does not generate or recognize dynamic permission names like `"shell:allow-ada-api"`. Instead, Tauri v2 relies on a strict capability model where sidecar commands are explicitly allowed using the built-in `"shell:allow-execute"` and `"shell:allow-spawn"` permissions, scoped specifically to the sidecar command name. We will update `capabilities/default.json` to define these scoped permissions and clean up temporary files to restore a pristine working tree.
 
 [Types]
 No changes are required in the project's data structures or domain types.
 
 [Files]
-We will modify the Tauri configuration and capabilities files to match the strict Tauri v2 schema.
+We will modify the Tauri capabilities file to match standard Tauri v2 scoped rules, and clean up temporary scripts.
 
 Detailed breakdown:
-- **Modified File:** `frontend/src-tauri/tauri.conf.json`
-  - Remove the invalid `"command"` key from the `"ada-api"` sidecar configuration under `plugins -> shell -> sidecar`.
 - **Modified File:** `frontend/src-tauri/capabilities/default.json`
-  - Replace the invalid `"shell:allow-sidecar"` permission with the correct scoped `"shell:allow-ada-api"` permission.
-- **Deleted File:** `get_github_logs.py`
+  - Re-configure the capabilities to use `"shell:allow-execute"` and `"shell:allow-spawn"` with specific scopes for both `"binaries/ada-api"` and `"ada-api"` to satisfy all possible resolution patterns.
+- **Deleted File:** `parse_jobs.py`
   - Delete temporary investigative script.
+- **Deleted File:** `parse_check_runs.py`
+  - Delete temporary investigative script.
+- **Deleted File:** `run_jobs.json`
+  - Delete temporary API file.
+- **Deleted File:** `commit_check_runs.json`
+  - Delete temporary API file.
+- **Deleted Files:** `annotations_*.json`
+  - Delete temporary annotations files.
 
 [Functions]
 No changes are needed to the Rust or Python functions.
@@ -31,13 +37,11 @@ No modifications are needed to packages or dependencies.
 [Implementation Order]
 We will apply targeted fixes sequentially to verify the configurations.
 
-1. Update `frontend/src-tauri/tauri.conf.json` to match the exact Tauri v2 schema.
-2. Update `frontend/src-tauri/capabilities/default.json` to reference the correct scoped sidecar permission `"shell:allow-ada-api"`.
-3. Clean up the temporary `get_github_logs.py` file.
-4. Commit changes to git and push to GitHub to trigger and verify the desktop compilation pipeline.
+1. Update `frontend/src-tauri/capabilities/default.json` to define scoped permissions for `shell:allow-execute` and `shell:allow-spawn`.
+2. Clean up temporary files: `parse_jobs.py`, `parse_check_runs.py`, `run_jobs.json`, `commit_check_runs.json`, and any generated `annotations_*.json` files.
+3. Commit and push the updates to trigger and verify the GitHub Actions compilation.
 
 task_progress Items:
-- [ ] Step 1: Update Tauri configuration schema in tauri.conf.json
-- [ ] Step 2: Update default capability permissions in default.json
-- [ ] Step 3: Clean up temporary get_github_logs.py script
-- [ ] Step 4: Commit and push changes to trigger GitHub Actions build
+- [ ] Step 1: Update default capability permissions with scoped sidecar rules in default.json
+- [ ] Step 2: Clean up temporary helper files
+- [ ] Step 3: Commit and push changes to trigger GitHub Actions build
